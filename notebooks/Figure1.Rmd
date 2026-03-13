@@ -1,0 +1,72 @@
+---
+title: "Figure 1: Deep single-nuclei transcriptomic atlas of the human substantia nigra"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+
+pA <- DimPlot(sn_atlas_processed,
+              reduction = "umap",
+              group.by = "CellType",
+              split.by = "Disease") +
+      ggtitle("A")
+pA
+
+markers <- c("TH","SLC6A3","GFAP","AQP4","MOBP","MOG","CSF1R")
+
+pB <- DotPlot(sn_atlas_processed,
+              features = markers,
+              dot.scale = 8) +
+      RotatedAxis() +
+      ggtitle("B")
+pB
+
+pC <- VlnPlot(sn_atlas_processed,
+              features = "nFeature_RNA",
+              group.by = "CellType") +
+      ggtitle("C")
+pC
+
+meta <- sn_atlas_processed@meta.data
+
+df <- meta %>%
+      group_by(Sample_v2, CellType) %>%
+      summarise(n = n())
+
+pD <- ggplot(df, aes(CellType, n, fill = Sample_v2)) +
+      geom_bar(stat="identity", position="dodge") +
+      theme(axis.text.x = element_text(angle=90)) +
+      ggtitle("D")
+
+pD
+
+pE <- DimPlot(sn_atlas_processed,
+              reduction = "umap",
+              group.by = "CellSubType",
+              split.by = "Disease") +
+      ggtitle("E")
+pE
+
+sub_markers <- c("AGTR1","TMEFF2","SOX6","LMX1B","ALDH1A1")
+
+pF <- DotPlot(sn_atlas_processed,
+              features = sub_markers) +
+      RotatedAxis() +
+      ggtitle("F")
+
+pF
+
+figure1 <- (pA | pB) /
+           (pC | pD) /
+           (pE | pF)
+
+ggsave("figures/Figure1.pdf",
+       figure1,
+       width = 16,
+       height = 12,
+       device = "pdf")
+
