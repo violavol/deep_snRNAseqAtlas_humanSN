@@ -1,14 +1,16 @@
 # A deep cellular atlas of the human ventral substantia nigra in Parkinson’s identifies a genetic and molecular overlap with insulin resistance.
 
+## Summary
+
 This repository contains the code to reproduce figures and analysis presented in the manuscript: A deep cellular atlas of the human ventral substantia nigra in Parkinson’s identifies a genetic and molecular overlap with insulin resistance, Volpato et al. (2026)
 
-## Data availability:
+## Data availability
 
 Raw and processed gene expression data has been deposited in GEO under the accession number:
 
-## Repository Orientation:
+## Repository Structure
 
-### The analysis/ directory includes all analyses discussed in the manuscript
+- The analysis/ directory includes all analyses discussed in the manuscript
 
 ```
 deep_snRNAseqAtlas_humanSN/
