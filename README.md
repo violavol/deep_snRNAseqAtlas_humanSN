@@ -10,6 +10,7 @@ Raw and processed gene expression data has been deposited in GEO under the acces
 
 ### The analysis/ directory includes all analyses discussed in the manuscript
 
+```
 deep_snRNAseqAtlas_humanSN/
 ├── README.md
 ├── LICENSE
@@ -37,4 +38,4 @@ deep_snRNAseqAtlas_humanSN/
 │   ├── DEG_tables/
 │   ├── MAGMA/
 │   └── GO_PPI/
-
+```
