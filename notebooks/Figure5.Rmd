@@ -1,0 +1,40 @@
+---
+title: "Figure 5 – AGTR1+ dopaminergic neuron vulnerability"
+output: html_document
+---
+
+```{r setup}
+library(ggplot2)
+library(patchwork)
+library(grid)
+library(png)
+
+pA <- VlnPlot(seurat_obj,
+              features=dopamine_genes,
+              group.by="DaN_subtype") +
+      ggtitle("A")
+pA
+
+pB <- VlnPlot(seurat_obj,
+              features=raas_genes,
+              group.by="DaN_subtype") +
+      ggtitle("B")
+pB
+
+imgC <- rasterGrob(readPNG("figures/raw_images/iPSC_DaN_AGTR1.png"))
+grid.draw(imgC)
+
+pD <- ggplot(pseudotime_df,
+             aes(pseudotime)) +
+      geom_density() +
+      ggtitle("D")
+pD
+
+pE <- ggplot(go_ppi,
+             aes(term, logp,
+                 size=logp,
+                 color=interval)) +
+      geom_point() +
+      coord_flip() +
+      ggtitle("E")
+pE
