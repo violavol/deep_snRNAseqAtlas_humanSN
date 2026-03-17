@@ -1,0 +1,50 @@
+---
+title: "Figure 3 – Cell type specific nigral changes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(patchwork)
+library(png)
+library(grid)
+
+pA <- ggplot(prop_df,
+             aes(celltype, proportion, fill=disease)) +
+      geom_bar(stat="identity", position="dodge") +
+      ggtitle("A")
+pA
+
+# Replace path with real image
+imgB <- rasterGrob(readPNG("figures/raw_images/AGTR1_puncta.png"))
+grid.newpage()
+grid.draw(imgB)
+
+pC <- ggplot(coverage_df,
+             aes(group, value)) +
+      geom_boxplot() +
+      ggtitle("C")
+pC
+
+imgD <- rasterGrob(readPNG("figures/raw_images/ODC_perineuronal.png"))
+grid.newpage()
+grid.draw(imgD)
+
+pE <- ggplot(deg_summary,
+             aes(celltype, n_degs, fill=condition)) +
+      geom_bar(stat="identity") +
+      ggtitle("E")
+pE
+
+
+pF <- ggplot(pseudotime_df,
+             aes(pseudotime, color=disease)) +
+      geom_density() +
+      ggtitle("F")
+pF
+
+pG <- ggplot(risk_df,
+             aes(interval, expression)) +
+      geom_violin() +
+      ggtitle("G")
+pG
