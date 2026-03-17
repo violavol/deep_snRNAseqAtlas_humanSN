@@ -1,0 +1,44 @@
+---
+title: "Figure 6 – Intersection of PD and metabolic traits"
+output: html_document
+---
+
+```{r setup}
+library(ComplexHeatmap)
+library(ggplot2)
+library(patchwork)
+
+Heatmap(magma_trait_matrix)
+
+Heatmap(magma_conditional_matrix)
+
+DotPlot(seurat_obj,
+        features=pi3k_genes,
+        group.by="condition")
+
+VlnPlot(seurat_obj,
+        features=c("INSR","GLP1R"))
+
+ggplot(gwas_df,
+       aes(pos, -log10(p))) +
+geom_point() +
+facet_wrap(~chr)
+
+ggplot(region_df,
+       aes(pos, -log10(p))) +
+geom_point()
+
+VlnPlot(seurat_obj,
+        features="TCF7L2",
+        group.by="CellType")
+
+ggplot(go_tcf7l2,
+       aes(term, logp,
+           size=logp)) +
+geom_point() +
+coord_flip()
+
+ggplot(pd_gene_df,
+       aes(gene, ZSTAT,
+           size=ZSTAT)) +
+geom_point()
