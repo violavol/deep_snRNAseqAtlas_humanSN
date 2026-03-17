@@ -1,0 +1,38 @@
+
+---
+title: "Figure 2 – PD genetic risk association"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(patchwork)
+library(ComplexHeatmap)
+library(dplyr)
+
+load("results/MAGMA/magma_results.RData")
+load("results/GO_PPI/GO_PPI_results.RData")
+
+pA <- Heatmap(magma_celltype_matrix,
+              name="-log10(p)",
+              column_title="A")
+pA
+
+pB <- Heatmap(magma_subtype_matrix,
+              name="-log10(p)",
+              column_title="B")
+pB
+
+pC <- ggplot(go_terms,
+             aes(term, logp, size = logp, color = celltype)) +
+      geom_point() +
+      coord_flip() +
+      ggtitle("C")
+
+pC
+
+ggsave("figures/Figure2.pdf",
+       pC,
+       width=14,
+       height=10,
+       device="pdf")
