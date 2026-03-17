@@ -1,0 +1,27 @@
+---
+title: "Figure 4 – Cell crosstalk"
+output: html_document
+---
+
+```{r setup}
+library(CellChat)
+library(ggplot2)
+library(patchwork)
+
+pA <- Heatmap(cellchat_magma_matrix)
+pA
+
+netVisual_circle(cellchat_obj)
+
+Heatmap(trajectory_matrix)
+
+pD <- ggplot(interaction_counts,
+             aes(group, value)) +
+      geom_bar(stat="identity") +
+      ggtitle("D")
+pD
+
+Heatmap(diff_interaction_matrix)
+
+pF <- netAnalysis_signalingRole_heatmap(cellchat_obj)
+pF
