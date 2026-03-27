@@ -61,7 +61,7 @@ save(sn_combined, file = here("data/processed/sn_atlas_annotated_subtype.RData")
 
 # markers_ODC=c("PLXDC2","PLP1","SPARC","DHCR24","TUBA1A","PMP2","RBFOX1","AFF3","FMN1","PALM2","HHIP","OPALIN","LAMA2") # selected from https://www.biorxiv.org/content/10.1101/2022.03.22.485367v1.full.pdf
 
-# markers_microglia=c("PTPRC","ITGAM","AIF1","C1QA","CTSS","CD14","CSF3R","ARGLU1","FAM46A","IFIT3","ISG15","MRC1","TNF","CD83","EGR2","TNFSF18","CCL8","TFRC","PCNA","RASGEF1C","AC008691.1", "TLN2","GPNMB","ACSL1","CXCR4","NTM", "MAGI2", "SCD", "PLP1","NRG3")  (check https://www.biorxiv.org/content/10.1101/2022.03.22.485367v1.full.pdf and https://www.nature.com/articles/s41467-020-19737-2) markers.to.plot=c("MRC1","IL10","ABCC4","CSF2RA","CSF3R","TFRC","KLF4","PTGS1","DOCK8","KCNQ1","PTPRC","GPNMB","SPP1","TYROBP","TREM2","TLR2","MS4A4A","IL13RA1","INPP5D","ITGAM","ADAP2","APBB1IP","SP140L","VAV1") # macrophage M2: "MRC1","IL10","ABCC4","CSF2RA","CSF3R","TFRC","KLF4","PTGS1","DOCK8"
+# markers_microglia=c("MRC1","IL10","ABCC4","CSF2RA","CSF3R","TFRC","KLF4","PTGS1","DOCK8","KCNQ1","PTPRC","GPNMB","SPP1","TYROBP","TREM2","TLR2","MS4A4A","IL13RA1","INPP5D","ITGAM","ADAP2","APBB1IP","SP140L","VAV1") # macrophage M2: "MRC1","IL10","ABCC4","CSF2RA","CSF3R","TFRC","KLF4","PTGS1","DOCK8")
 
 # markers_astrocyte=c("GABRA2","EDNRB","PPFIA2","KCNJ16","BHLHE40","SLC6A11","PAK3","GRM5","PTPRT","FAT3","EPHA6","EPHB1","ADGRV1","SPOCK1","SPSB1","MYO1E","SLC24A2","ELMO1","NKAIN2","PLP1","S100B","TMSB4X") 
 
