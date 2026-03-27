@@ -47,6 +47,17 @@ dan_markers <- c("SOX6", "GRIA3", "DCX", "AGTR1", "LMX1B", "GRIK3", "RET", "GFRA
 DotPlot(tmp_cell.combined, features = dan_markers, dot.scale = 8,idents = c(0,1,2,3)) + # clusters 4 and 5 are not used as too small and only present in ILBD_B3-4
     RotatedAxis()
 
+meta_sub<-as.data.frame(tmp_cell.combined@meta.data)
+
+sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==0,]),"DaN_0",sn_combined$CellSubType)
+sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==1,]),"DaN_1",sn_combined$CellSubType)
+sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==2,]),"DaN_2",sn_combined$CellSubType)
+sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==3,]),"DaN_3",sn_combined$CellSubType)
+sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==4,]),"DaN_4",sn_combined$CellSubType)
+sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==5,]),"DaN_5",sn_combined$CellSubType)
+
+save(sn_combined, file = here("data/processed/sn_atlas_annotated_subtype.RData"))
+
 
 # markers_ODC=c("PLXDC2","PLP1","SPARC","DHCR24","TUBA1A","PMP2","RBFOX1","AFF3","FMN1","PALM2","HHIP","OPALIN","LAMA2") # selected from https://www.biorxiv.org/content/10.1101/2022.03.22.485367v1.full.pdf
 
