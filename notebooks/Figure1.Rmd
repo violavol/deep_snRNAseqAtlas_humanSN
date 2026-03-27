@@ -16,57 +16,67 @@ library(dplyr)
 
 #cols = c("orange","gold","darkolivegreen3","dodgerblue","purple") # disease stage
 
+load(here("data/processed/sn_atlas_annotated_subtype.RData"))
 
-pA <- DimPlot(sn_atlas_processed,
+pA <- DimPlot(sn_combined,
               reduction = "umap",
               group.by = "CellType",
               split.by = "Disease") +
       ggtitle("A")
 pA
 
-markers <- c("TH","SLC6A3","GFAP","AQP4","MOBP","MOG","CSF1R")
+markersALL<-c("GFRA2","CCDC68","PPP1R17","LMX1A","NTSR1","KCNJ6","LMX1B", "GRIK3","GAD2","GAD1","ALDH1A1","AQP4","GFAP","VCAN","MOBP","MOG","CSF1R","CD8A","PTPRC")
 
-pB <- DotPlot(sn_atlas_processed,
+
+pB <- DotPlot(sn_combined,
               features = markers,
               dot.scale = 8) +
       RotatedAxis() +
       ggtitle("B")
 pB
 
-pC <- VlnPlot(sn_atlas_processed,
+pC <- VlnPlot(sn_combined,
               features = "nFeature_RNA",
               group.by = "CellType") +
       ggtitle("C")
 pC
 
-meta <- sn_atlas_processed@meta.data
+meta <- sn_combined@meta.data
 
 df <- meta %>%
-      group_by(Sample_v2, CellType) %>%
-      summarise(n = n())
+    group_by(Sample_v2, CellType) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    group_by(CellType) %>%
+    mutate(prop = n / sum(n)) %>%
+    ungroup()
 
-pD <- ggplot(df, aes(CellType, n, fill = Sample_v2)) +
-      geom_bar(stat="identity", position="dodge") +
-      theme(axis.text.x = element_text(angle=90)) +
-      ggtitle("D")
+pD <- ggplot(df, aes(CellType, prop, fill = Sample_v2)) +
+    geom_bar(stat = "identity") +
+    theme(axis.text.x = element_text(angle = 90)) +
+    ggtitle("D") +
+    theme_minimal() +
+    theme(legend.key.size = unit(0.4, 'cm'),
+          legend.text = element_text(size = 9)) +
+    scale_fill_manual(values = getPalette(colourCount)) + theme(axis.text.x = element_text(size=12),axis.text.y = element_text(size=12))+
+    ylab("Proportion")
 
 pD
 
-pE <- DimPlot(sn_atlas_processed,
+pE <- DimPlot(sn_combined,
               reduction = "umap",
               group.by = "CellSubType",
               split.by = "Disease") +
       ggtitle("E")
 pE
 
-sub_markers <- c("AGTR1","TMEFF2","SOX6","LMX1B","ALDH1A1")
-
-pF <- DotPlot(sn_atlas_processed,
+sub_markers <- c("TMEFF2","SLC6A3","PITX3","GFRA2","RET","GRIK3","LMX1B","AGTR1","DCX","GRIA3")
+sn_combined_DAN <- subset(sn_combined,subset=CellType=="DaN")
+pF1 <- DotPlot(sn_combined_DAN,
               features = sub_markers) +
       RotatedAxis() +
       ggtitle("F")
 
-pF
+pF <- (pF1 | pF2 | pF3 | pF4)
 
 figure1 <- (pA | pB) /
            (pC | pD) /
