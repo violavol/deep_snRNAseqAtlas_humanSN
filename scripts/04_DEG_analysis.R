@@ -3,23 +3,23 @@ library(dplyr)
 library(here)
 
 # Load subclustered object
-load(here("data/processed/DA_subclusters.RData"))
+load(here("data/processed/sn_atlas_annotated_subtype.RData"))
 
-### Find cell type specific gene markers 
+# Find cell type specific gene markers for MAGMA analysis
 
 ```{r gene markers, echo=TRUE}
 
-# Method 1 (used in the manuscript):
-# to be done for each cell type and subtype in controls
+
+# to be done for each cell type and subtype in control samples
 
 # level 1:
 
 list_w_stat<-c()
 df_w_test<-c()
 signed_rank = function(x) sign(x) * rank(abs(x))
-metadataALL<-as.data.frame(sn_atlas_processed@meta.data)
+metadataALL<-as.data.frame(sn_combined@meta.data)
 metadataALL_CTR<-metadataALL[metadataALL$Disease=="CTR",]
-data<-as.matrix(GetAssayData(sn_atlas_processed, slot = "counts"))
+data<-as.matrix(GetAssayData(sn_combined, slot = "counts"))
 data<-data[,colnames(data)%in%rownames(metadataALL_CTR)]
 list_cell <- as.array(unique(metadataALL_CTR$CellType))
 list_gene <- row.names(data)
@@ -34,7 +34,7 @@ compute_w_val<-function(gene_ref,cell_ref,matrix_expr,info_cell) {
     linearMod <- lm(signed_rank(y) ~ x, data=df)
     val<-summary(linearMod)
     list_val<-val$coefficients[2,3]
-    return(val$coefficients[2,3]) ## w-statisc value
+    return(val$coefficients[2,3]) ## statistic
 }
 
 for (i in c(1:length(list_cell))) {
@@ -50,16 +50,17 @@ for (i in c(1:length(list_cell))) {
 }
 colnames(df_w_test) <- list_cell
 write.table(df_w_test,"Wtest_level1",quote=F,sep="\t")
+df_w_test_level1 <- df_w_test
 
-# level 2:
+# level 2 (DaN subtype):
 
 list_w_stat<-c()
 df_w_test<-c()
 signed_rank = function(x) sign(x) * rank(abs(x))
-metadataALL<-as.data.frame(sn_atlas_processed@meta.data)
+metadataALL<-as.data.frame(sn_combined@meta.data)
 metadataALL_CTR<-metadataALL[metadataALL$Disease=="CTR",]
-metadataALL_CTR<-metadataALL_CTR[metadataALL_CTR$CellType=="ODC",]
-data<-as.matrix(GetAssayData(sn_atlas_processed, slot = "counts"))
+metadataALL_CTR<-metadataALL_CTR[metadataALL_CTR$CellType=="DaN",]
+data<-as.matrix(GetAssayData(sn_combined, slot = "counts"))
 data<-data[,colnames(data)%in%rownames(metadataALL_CTR)]
 list_cell <- as.array(unique(metadataALL_CTR$CellSubType))
 list_gene <- row.names(data)
@@ -74,7 +75,7 @@ compute_w_val<-function(gene_ref,cell_ref,matrix_expr,info_cell) {
     linearMod <- lm(signed_rank(y) ~ x, data=df)
     val<-summary(linearMod)
     list_val<-val$coefficients[2,3]
-    return(val$coefficients[2,3]) ## w-statisc value
+    return(val$coefficients[2,3]) ## statistic
 }
 
 for (i in c(1:length(list_cell))) {
@@ -89,17 +90,10 @@ for (i in c(1:length(list_cell))) {
     }
 }
 colnames(df_w_test) <- list_cell
-write.table(df_w_test,"Wtest_ODCs",quote=F,sep="\t")
+write.table(df_w_test,"Wtest_DaN_subtypes",quote=F,sep="\t")
+df_w_test_level2_DaN <- df_w_test
 
 
 
-
-
-# Differential expression
-deg_results <- list()
-for (clust in levels(Idents(DA_cells))) {
-  deg_results[[clust]] <- FindMarkers(DA_cells, ident.1 = clust, min.pct = 0.25)
-}
-
-# Save DEG results
-save(deg_results, file = here("results/DEG_tables/DA_DEG_results.RData"))
+# Save  results
+save(df_w_test_level1, df_w_test_level2_DaN, file = here("results/DEG_tables/DEG_results.RData"))
