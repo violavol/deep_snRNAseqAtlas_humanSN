@@ -25,31 +25,28 @@ prop_test <- permutation_test(
 
 # Plot cell type proportions
 meta <- sn_combined@meta.data
-
-df_counts <- meta %>%
-    group_by(donor_id, disease, seurat_clusters) %>%
-    summarise(n = n(), .groups = "drop")
-df_prop <- df_counts %>%
-    group_by(donor_id) %>%
-    mutate(prop = n / sum(n)) %>%
-    ungroup()
-
-ggplot(df_prop, aes(x = disease, y = prop, fill = disease)) +
-    geom_boxplot(outlier.shape = NA) +
-    geom_jitter(width = 0.2, size = 1, alpha = 0.6) +
-    facet_wrap(~ seurat_clusters, scales = "free_y") +
-    theme_classic() +
-    ylab("Cell type proportion") +
-    xlab("Disease")
+df_prop <- meta %>%
+  count(CellSubType, Disease) %>%          # count cells
+  group_by(CellSubType) %>%
+  mutate(prop = n / sum(n)) %>%       # compute proportions
+  ungroup()
 
 
+prop_plot <- ggplot(df_prop, aes(x = celltype, y = prop, fill = group)) +
+  geom_col(width = 0.9) +
+  scale_y_continuous(labels = function(x) x * 100) +
+  scale_fill_manual(
+    values = c("CTR" = "mediumorchid", "PD_B5_6" = "skyblue2")
+  ) +
+  labs(x = NULL, y = "prop", fill = NULL) +
+  theme_gray() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
 
 
-prop_plot <- ggplot(cell_props_df, aes(x=Disease, y=Proportion, fill=CellType)) +
-  geom_bar(stat="identity", position="stack") +
-  theme_minimal() +
-  labs(title="Cell Type Proportions per Disease Group")
 
 # Save figure
 ggsave(here("figures/Figure_3/CellType_Proportions.pdf"), prop_plot, width = 6, height = 4)
-save(cell_props_df, file = here("results/CellType_Proportions.RData"))
+save(df_prop, file = here("results/CellType_Proportions.RData"))
