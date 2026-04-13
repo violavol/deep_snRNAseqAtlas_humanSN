@@ -6,10 +6,6 @@ library(here)
 load(here("data/processed/sn_atlas_annotated_subtype.RData"))
 
 # Find cell type specific gene markers for MAGMA analysis
-
-```{r gene markers, echo=TRUE}
-
-
 # to be done for each cell type and subtype in control samples
 
 # level 1:
@@ -94,6 +90,23 @@ write.table(df_w_test,"Wtest_DaN_subtypes",quote=F,sep="\t")
 df_w_test_level2_DaN <- df_w_test
 
 
-
 # Save  results
 save(df_w_test_level1, df_w_test_level2_DaN, file = here("results/DEG_tables/DEG_results.RData"))
+
+
+
+# Prepare for MAGMA analysis 
+# level 1:
+
+df_w_test_2p<-data.frame(cellt=c(rep("ODC",500),rep("Astrocyte",500),rep("DaN",500),rep("GABA",500),rep("OPC",500),rep("Microglia",500),rep("Tcell",500)),id=c(rownames(df_w_test[order(-df_w_test$ODC),])[1:500],rownames(df_w_test[order(-df_w_test$Astrocyte),])[1:500],rownames(df_w_test[order(-df_w_test$DaN),])[1:500],rownames(df_w_test[order(-df_w_test$GABA),])[1:500],rownames(df_w_test[order(-df_w_test$OPC),])[1:500],rownames(df_w_test[order(-df_w_test$Microglia),])[1:500],rownames(df_w_test[order(-df_w_test$Tcell),])[1:500]))
+
+NCBI37.3.gene.loc<-read.delim("NCBI37.3.gene.loc",h=F)
+names(NCBI37.3.gene.loc)[6]<-"id"
+df<-merge(df_w_test_2p[,1:2],NCBI37.3.gene.loc,by=c("id"))
+list_gene<-c()
+for(m in unique(df$cellt)){
+ val<-c(m,as.character(df[df$cellt==m,3]))
+ val<-paste(val,collapse =" ")
+ list_gene<-c(list_gene,val)
+}
+write.table(data.frame(list_gene),file="input_magma_level1_2p",quote=FALSE,row.names=FALSE,col.names=FALSE,sep="\t")
