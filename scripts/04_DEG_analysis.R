@@ -5,6 +5,26 @@ library(here)
 # Load subclustered object
 load(here("data/processed/sn_atlas_annotated_subtype.RData"))
 
+# Find DEGs by subtype
+sn_combined$clust.disease <- paste(sn_combined$CellSubType, sn_combined$Disease, sep = "_")
+Idents(sn_combined) <- "clust.disease"
+
+sn_combined <- subset(sn_combined,subset=Disease=="CTR" | Disease=="PD_B5-6")
+deg_results <- list()
+for (clust in levels(sn_combined)) {
+    markers <- FindMarkers(
+    sn_combined,
+    ident.1 = clust,
+    group.by = "Disease"   # CTR vs PD_B5_6
+  )
+  deg_results[[clust]] <- markers
+}
+
+# Save  results
+save(deg_results, df_w_test_level2_DaN, file = here("results/DEG_tables/DEG_results.RData"))
+
+
+
 # Find cell type specific gene markers for MAGMA analysis
 # to be done for each cell type and subtype in control samples
 
@@ -91,7 +111,7 @@ df_w_test_level2_DaN <- df_w_test
 
 
 # Save  results
-save(df_w_test_level1, df_w_test_level2_DaN, file = here("results/DEG_tables/DEG_results.RData"))
+save(df_w_test_level1, df_w_test_level2_DaN, file = here("results/DEG_tables/DEG_results_MAGMA.RData"))
 
 
 
