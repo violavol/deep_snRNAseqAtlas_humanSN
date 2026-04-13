@@ -10,6 +10,7 @@ library(png)
 library(grid)
 
 load("results/CellType_Proportions.RData")
+load("results/DEG_tables/DEG_results.RData")
 
 pA <- ggplot(prop_df,
              aes(CellSubType, prop, fill=Disease)) +
@@ -32,10 +33,24 @@ imgD <- rasterGrob(readPNG("figures/raw_images/ODC_perineuronal.png"))
 grid.newpage()
 grid.draw(imgD)
 
-pE <- ggplot(deg_summary,
-             aes(celltype, n_degs, fill=condition)) +
-      geom_bar(stat="identity") +
-      ggtitle("E")
+
+deg_counts <- sapply(deg_results, function(df) {
+  sum(df$p_val_adj < 0.05 & abs(df$avg_log2FC) > 1, na.rm = TRUE)
+})
+mat <- matrix(deg_counts, nrow = 1)
+colnames(mat) <- names(deg_counts)
+rownames(mat) <- "DEG_count"
+
+library(pheatmap)
+
+pE <- pheatmap(
+  mat,
+  cluster_rows = FALSE,
+  cluster_cols = TRUE,
+  display_numbers = TRUE,
+  main = "Number of DEGs (FDR < 0.05 & |logFC| > 1)"
+)
+
 pE
 
 
