@@ -9,8 +9,10 @@ library(patchwork)
 library(png)
 library(grid)
 
+load("results/CellType_Proportions.RData")
+
 pA <- ggplot(prop_df,
-             aes(celltype, proportion, fill=disease)) +
+             aes(CellSubType, prop, fill=Disease)) +
       geom_bar(stat="identity", position="dodge") +
       ggtitle("A")
 pA
