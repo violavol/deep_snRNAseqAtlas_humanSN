@@ -31,8 +31,12 @@ pC <- ggplot(go_terms,
 
 pC
 
+figure2 <- (pA | pB) /
+           pC
+       
+
 ggsave("figures/Figure2.pdf",
-       pC,
+       figure2,
        width=14,
        height=10,
        device="pdf")
