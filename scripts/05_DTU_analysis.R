@@ -1,5 +1,6 @@
 ### Isoform Analysis 
 
+library(slingshot)
 library(fishpond)
 library(scran)
 library(biomaRt)
