@@ -61,6 +61,9 @@ meta_isoform_OPC_ODC2_CTR$ps<-sce_iso_opc_odc2_ctr$slingPseudotime_1
 ggplot(meta_isoform_OPC_ODC2_CTR, aes(x=ps, fill=celltype)) +
     geom_density(alpha=.5) + theme_bw()
 
+save(meta_isoform_OPC_ODC2_CTR,meta_isoform_OPC_ODC2_PD_B56, file= here("results/pseudotime/OPC_ODCs_DTU_ps.RData"))
+
+
 isoform_OPC_ODC2_CTR<-as.matrix(GetAssayData(chip_iso_opc_odc2_ctr, slot = "counts"))
 isoform_OPC_ODC2_CTR<-log(isoform_OPC_ODC2_CTR+1)
 sde_iso_opc_odc2_ctr <- switchde(isoform_OPC_ODC2_CTR, sce_iso_opc_odc2_ctr$slingPseudotime_1)
