@@ -13,8 +13,8 @@ dan_markers_path <- "Wtest_DaNs"
 pd_risk_path <- "MAGMA_pd_risk_odcs2"
 
 # Output directory
-output_dir <- "figure4_outputs"
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+output_dir <- "results/cellcomm/"
+#dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 # Analysis settings
 disease_col <- "Disease"
@@ -93,6 +93,8 @@ p_heat_count <- netVisual_heatmap(cellchat_merged)
 p_heat_weight <- netVisual_heatmap(cellchat_merged, measure = "weight")
 
 p_heat_count + p_heat_weight
+
+save(cellchat_merged,ctr_tables, file="results/cellcomm/cellchat_res.RData")
 
 # Enrichment test for PD genetic risk-associated genes
 
