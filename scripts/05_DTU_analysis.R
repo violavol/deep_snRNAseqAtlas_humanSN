@@ -68,19 +68,10 @@ isoform_OPC_ODC2_CTR<-as.matrix(GetAssayData(chip_iso_opc_odc2_ctr, slot = "coun
 isoform_OPC_ODC2_CTR<-log(isoform_OPC_ODC2_CTR+1)
 sde_iso_opc_odc2_ctr <- switchde(isoform_OPC_ODC2_CTR, sce_iso_opc_odc2_ctr$slingPseudotime_1)
 
+# test enrichment of pd risk isoforms in OPCs and ODC_2 along differentiation trajectory:
 pd_risk_opc_isoform<-read.table("pd_50k_gene_and_iso_opc.gsa.sets.genes.out",h=T)
 pd_risk_odc2_isoform<-read.table("pd_50k_gene2000_and_iso_odc2_only.gsa.sets.genes.out",h=T)
 
-# test enrichment of pd risk isoforms in OPCs and ODC_2 along differentiation trajectory:
 
 
-meta_isoform_OPC_ODC_CTR_tmp<-meta_isoform_OPC_ODC2_CTRandPD56[meta_isoform_OPC_ODC2_CTRandPD56$celltype=="OPC",]
-meta_isoform_OPC_ODC_CTR_tmp <-meta_isoform_OPC_ODC_CTR_tmp[order(meta_isoform_OPC_ODC_CTR_tmp$ps),]
-meta_isoform_OPC_ODC_CTR_tmp<-meta_isoform_OPC_ODC_CTR_tmp[meta_isoform_OPC_ODC_CTR_tmp$ps>10,] # opcs subset
-meta_isoform_OPC_ODC_CTR_tmp$set<-ifelse(meta_isoform_OPC_ODC_CTR_tmp$ps<15,"late","early")
-chip_iso_opc_odc_ctr_tmp<-chip_iso_opc_odc2_ctr[,colnames(chip_iso_opc_odc2_ctr)%in%meta_isoform_OPC_ODC_CTR_tmp$names]
-chip_iso_opc_odc_ctr_tmp$set<-meta_isoform_OPC_ODC_CTR_tmp$set
-
-Idents(chip_iso_opc_odc_ctr_tmp)<-chip_iso_opc_odc_ctr_tmp$set
-opc_latevsearly_ctr<-FindMarkers(chip_iso_opc_odc_ctr_tmp,ident.1 = "late", ident.2 = "early")
 
