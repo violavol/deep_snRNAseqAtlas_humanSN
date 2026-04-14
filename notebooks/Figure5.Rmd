@@ -13,14 +13,30 @@ library(png)
 load(here("data/processed/sn_atlas_annotated_subtype.RData"))
 load(here("results/pseudotime/dan1_dan3.RData"))
 dopamine_genes <- read.table("data/dopamine_genes.txt")
-raas_genes <- read.table("data/raas_genes.txt")
+ras_genes <- read.table("data/ras_genes.txt")
 
 sn_combined_dan <- subset(sn_combined_dan,subset=CellType=="DaN")
 sn_combined_dan<-subset(sn_combined_dan,subset=Disease=="CTR")
 
-pA <- VlnPlot(sn_combined_dan,
-              features=dopamine_genes[,1],
-              group.by="CellSubType") +
+prot_cod_len<-read.delim("data/gene_length",h=T)
+data<-as.matrix(GetAssayData(sn_combined_dan, slot = "counts"))
+prot_cod_m<-prot_cod_len[match(rownames(data),prot_cod_len[,1]),]
+data <- sweep(data, 1, STATS = prot_cod_m$Gene_Length/1000, FUN = "/")
+data[is.na(data)]<-0
+data <- sweep(data, 2, STATS = colSums(data)/(10^6), FUN = "/")
+SN_TPM_log_red<-log(data+1)
+
+SN_TPM_log_red_dopamine<-SN_TPM_log_red[rownames(SN_TPM_log_red)%in%dopamine_genes[,1],]
+SN_TPM_log_red_dopamine_t<-t(SN_TPM_log_red_dopamine)
+SN_red_t_ord<-SN_TPM_log_red_dopamine_t
+SN_red_t_ord<-as.data.frame(SN_red_t_ord)
+SN_red_t_ord$cell_id<-sn_combined_dan$CellSubType
+SN_TPM_log_red_dopamine_t_melt<-melt(SN_red_t_ord)
+
+
+pA <- ggplot(SN_TPM_log_red_dopamine_t_melt,aes(x=variable,y=value,fill=cell_id))+
+    geom_violin(trim=T, scale="width", adjust=0.8)+scale_fill_manual(values=c("lightgoldenrod1","goldenrod","tan1","darkorange3"))+
+    theme_bw() +
       ggtitle("A")
 pA
 
