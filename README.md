@@ -21,9 +21,14 @@ deep_snRNAseqAtlas_humanSN/
 │   ├── 02_cell_type_annotation.R
 │   ├── 03_subtype_analysis.R
 │   ├── 04_DEG_analysis.R
-│   ├── 05_pathway_PPI_analysis.R
-│   ├── 06_pseudotime_analysis.R
-│   ├── 07_cell_proportions.R
+│   ├── 05_DTU_analysis.R
+│   ├── 06_pathway_PPI_analysis.R
+│   ├── 07_pseudotime_analysis.R
+│   ├── 08_cell_proportions.R
+│   ├── 09_cellcommunication_analysis.R
+│   ├── 10_coexpression_network.R
+│   ├── 11_SCENIC.R
+│   ├── cellchat_utils.R
 │   └── utils.R                # Common helper functions
 ├── figures/
 │   ├── Figure_1/
