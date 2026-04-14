@@ -4,41 +4,90 @@ output: html_document
 ---
 
 ```{r setup}
+library(Seurat)
 library(ComplexHeatmap)
 library(ggplot2)
 library(patchwork)
 
-Heatmap(magma_trait_matrix)
+load(here("results/MAGMA/magma_results_metab.RData"))
+load(here("data/processed/sn_atlas_annotated_subtype.RData"))
 
-Heatmap(magma_conditional_matrix)
+pA <- Heatmap(magma_celltype_metabolism,
+              name="-log10(p)",
+              column_title="A")
+pA
 
-DotPlot(seurat_obj,
-        features=pi3k_genes,
-        group.by="condition")
+pB1 <- Heatmap(magma_conditional_metab_dan3,
+              name="-log10(p)")
+pB2 <- Heatmap(magma_conditional_metab_odc2,
+              name="-log10(p)")
+pB <- pB1 + pB2
+pB
 
-VlnPlot(seurat_obj,
-        features=c("INSR","GLP1R"))
+pi3k_genes <- read.table("data/pi3k_genes.txt")
+sn_combined_tmp <- subset(sn_combined,subset=CellSubType=="ODC_2")
+sn_combined_tmp <- subset(sn_combined_tmp,subset=Disease=="CTR" | Disease=="PD_B3-4")
+pC <- DotPlot(sn_combined_tmp,
+        features=pi3k_genes[,1],
+        group.by="Disease")
+pC
 
-ggplot(gwas_df,
-       aes(pos, -log10(p))) +
-geom_point() +
-facet_wrap(~chr)
+pD <- VlnPlot(sn_combined,
+        features=c("INSR","GLP1R","GIPR","GCGR")group.by="CellSubType")
+pD
 
-ggplot(region_df,
-       aes(pos, -log10(p))) +
-geom_point()
+imgE <- rasterGrob(readPNG("figures/raw_images/PDT2D_gwas.png"))
+grid.draw(imgE)
 
-VlnPlot(seurat_obj,
-        features="TCF7L2",
-        group.by="CellType")
+imgF <- rasterGrob(readPNG("figures/raw_images/PDT2D_gwas_locus.png"))
+grid.draw(imgF)
 
-ggplot(go_tcf7l2,
+pdt2d_ras_genes <- read.table("data/pdt2d_ras_genes.txt")
+tcf7l2_regulon_genes <- read.table("data/tcf7l2_regulon_genes.txt")
+
+prot_cod_len<-read.delim("data/gene_length",h=T)
+data<-as.matrix(GetAssayData(sn_combined, slot = "counts"))
+prot_cod_m<-prot_cod_len[match(rownames(data),prot_cod_len[,1]),]
+data <- sweep(data, 1, STATS = prot_cod_m$Gene_Length/1000, FUN = "/")
+data[is.na(data)]<-0
+data <- sweep(data, 2, STATS = colSums(data)/(10^6), FUN = "/")
+SN_TPM_log_red<-log(data+1)
+
+SN_TPM_log_red_pdt2d<-SN_TPM_log_red[rownames(SN_TPM_log_red)%in%pdt2d_ras_genes[,1],]
+SN_TPM_log_red_pdt2d_t<-t(SN_TPM_log_red_pdt2d)
+SN_red_t_ord<-SN_TPM_log_red_pdt2d_t
+SN_red_t_ord<-as.data.frame(SN_red_t_ord)
+SN_red_t_ord$cell_id<-sn_combined$CellSubType
+SN_TPM_log_red_pdt2d_t_melt<-melt(SN_red_t_ord)
+
+pG1 <- ggplot(SN_TPM_log_red_pdt2d_t_melt,aes(x=variable,y=value,fill=cell_id))+
+    geom_violin(trim=T, scale="width", adjust=0.8) +
+    theme_bw() 
+pG1
+
+SN_TPM_log_red_tcf7l2<-SN_TPM_log_red[rownames(SN_TPM_log_red)%in%tcf7l2_regulon_genes[,1],]
+SN_TPM_log_red_tcf7l2_t<-t(SN_TPM_log_red_tcf7l2)
+SN_red_t_ord<-SN_TPM_log_red_tcf7l2_t
+SN_red_t_ord<-as.data.frame(SN_red_t_ord)
+SN_red_t_ord$cell_id<-sn_combined$CellSubType
+SN_TPM_log_red_tcf7l2_t_melt<-melt(SN_red_t_ord)
+
+pG2 <- ggplot(SN_TPM_log_red_tcf7l2_t_melt,aes(x=variable,y=value,fill=cell_id))+
+    geom_violin(trim=T, scale="width", adjust=0.8)+
+    theme_bw() 
+pG2
+
+go_tcf7l2 <- read.table("results/SCENIC/go_tcf7l2")
+pH <- ggplot(go_tcf7l2,
        aes(term, logp,
            size=logp)) +
 geom_point() +
 coord_flip()
+pH
 
-ggplot(pd_gene_df,
-       aes(gene, ZSTAT,
+pd_gwasgenes_df <- read.table("results/GWAS/pd_gwasgenes_df")
+pI <- ggplot(pd_gwasgenes_df,
+       aes(gene, gwas,
            size=ZSTAT)) +
 geom_point()
+pI
