@@ -3,16 +3,6 @@
 ## File 2 — `R/cellchat_utils.R`
 
 ```r
-run_basic_seurat_processing <- function(seurat_obj, nfeatures = 2000, npcs = 10, resolution = 0.6) {
-  seurat_obj <- NormalizeData(seurat_obj)
-  seurat_obj <- FindVariableFeatures(seurat_obj, selection.method = "vst", nfeatures = nfeatures)
-  seurat_obj <- ScaleData(seurat_obj)
-  seurat_obj <- RunPCA(seurat_obj, features = VariableFeatures(seurat_obj))
-  seurat_obj <- FindNeighbors(seurat_obj, dims = seq_len(npcs))
-  seurat_obj <- FindClusters(seurat_obj, resolution = resolution)
-  seurat_obj <- RunUMAP(seurat_obj, dims = seq_len(npcs))
-  seurat_obj
-}
 
 prepare_cellchat_object <- function(
   seurat_obj,
