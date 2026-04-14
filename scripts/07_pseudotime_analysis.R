@@ -121,7 +121,7 @@ sce_odc2_deg <- fitGAM(genes_odc2,sds=SlingshotDataSet(sce_odc2))
 odc2_deg_tradeseq <- associationTest(sce_odc2_deg)
 odc2_deg_tradeseqStartEnd <- startVsEndTest(sce_odc2_deg)
 
-save(sce_odc,odc2_deg_tradeseqStartEnd,file="results/pseudotime/ps_odc.RData")
+save(sce_odc,sce_odc2_deg,odc2_deg_tradeseqStartEnd,file="results/pseudotime/ps_odc.RData")
 
 
 
