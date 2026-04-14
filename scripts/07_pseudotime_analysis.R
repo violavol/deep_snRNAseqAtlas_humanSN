@@ -95,7 +95,33 @@ avg_exp_ps_dan01_all<-rbind(avg_exp_ps_dan01_up$RNA,avg_exp_ps_dan01_down$RNA)
 
 pheatmap::pheatmap(log(avg_exp_ps_dan01_all+1), cluster_rows=F, cluster_cols=F,scale = "row",fontsize=2)
 
+## ODCs:
+sn_atlas_processed_tmp<-subset(sn_atlas_processed,subset=CellType=="ODC")
+sn_atlas_processed_tmp <- NormalizeData(sn_atlas_processed_tmp)
+sn_atlas_processed_tmp <- FindVariableFeatures(sn_atlas_processed_tmp, selection.method = "vst", nfeatures = 2000)
+sn_atlas_processed_tmp <- ScaleData(sn_atlas_processed_tmp)
+sn_atlas_processed_tmp <- RunPCA(sn_atlas_processed_tmp, features = VariableFeatures(object = sn_atlas_processed_tmp))
+sn_atlas_processed_tmp <- FindNeighbors(sn_atlas_processed_tmp, dims = 1:30)
+sn_atlas_processed_tmp <- FindClusters(sn_atlas_processed_tmp, resolution = 0.6)
+sn_atlas_processed_tmp <- RunUMAP(sn_atlas_processed_tmp, dims = 1:30)
+sce_odc <- as.SingleCellExperiment(sn_atlas_processed_tmp, assay = "RNA")
+sce_odc <- slingshot(sce_odc, reducedDim = 'UMAP', clusterLabels = 'Disease')
 
+
+meta_toplot_odc<-data.frame(ps=sce_odc$slingPseudotime_1,disease=sce_odc$Disease,cellt=sce_odc$CellSubType)
+meta_toplot_odc<-meta_toplot_odc[meta_toplot_odc$cellt=="ODC_2",]
+ggplot(meta_toplot_odc, aes(x=ps, fill=disease)) +
+    geom_density(alpha=.5) + theme_bw()
+
+
+# characterisation of the genes changing expression along pseudotime
+
+genes_odc2<-as.matrix(GetAssayData(sn_atlas_processed_tmp, slot = "counts"))
+sce_odc2_deg <- fitGAM(genes_odc2,sds=SlingshotDataSet(sce_odc2))
+odc2_deg_tradeseq <- associationTest(sce_odc2_deg)
+odc2_deg_tradeseqStartEnd <- startVsEndTest(sce_odc2_deg)
+
+save(sce_odc,file="results/pseudotime/ps_odc.RData")
 
 
 
