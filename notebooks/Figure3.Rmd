@@ -11,6 +11,7 @@ library(grid)
 
 load("results/CellType_Proportions.RData")
 load("results/DEG_tables/DEG_results.RData")
+load("results/pseudotime/OPC_ODCs_DTU_ps.RData")
 
 pA <- ggplot(prop_df,
              aes(CellSubType, prop, fill=Disease)) +
@@ -54,11 +55,14 @@ pE <- pheatmap(
 pE
 
 
-pF <- ggplot(pseudotime_df,
-             aes(pseudotime, color=disease)) +
-      geom_density() +
+pF1 <- ggplot(meta_isoform_OPC_ODC2_CTR, aes(x=ps, fill=celltype)) +
+    geom_density(alpha=.5) + theme_bw() +
       ggtitle("F")
-pF
+pF1
+pF2 <- ggplot(meta_isoform_OPC_ODC2_PD_B56, aes(x=ps, fill=celltype)) +
+    geom_density(alpha=.5) + theme_bw() +
+      ggtitle("F")
+pF2
 
 pG <- ggplot(risk_df,
              aes(interval, expression)) +
