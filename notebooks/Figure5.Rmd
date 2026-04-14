@@ -9,32 +9,39 @@ library(patchwork)
 library(grid)
 library(png)
 
-pA <- VlnPlot(seurat_obj,
-              features=dopamine_genes,
-              group.by="DaN_subtype") +
+
+load(here("data/processed/sn_atlas_annotated_subtype.RData"))
+load(here("results/pseudotime/dan1_dan3.RData"))
+dopamine_genes <- read.table("data/dopamine_genes.txt")
+raas_genes <- read.table("data/raas_genes.txt")
+
+sn_combined_dan <- subset(sn_combined_dan,subset=CellType=="DaN")
+sn_combined_dan<-subset(sn_combined_dan,subset=Disease=="CTR")
+
+pA <- VlnPlot(sn_combined_dan,
+              features=dopamine_genes[,1],
+              group.by="CellSubType") +
       ggtitle("A")
 pA
 
-pB <- VlnPlot(seurat_obj,
+pB <- VlnPlot(sn_combined_dan,
               features=raas_genes,
-              group.by="DaN_subtype") +
+              group.by="CellSubType") +
       ggtitle("B")
 pB
 
 imgC <- rasterGrob(readPNG("figures/raw_images/iPSC_DaN_AGTR1.png"))
 grid.draw(imgC)
 
-pD <- ggplot(pseudotime_df,
-             aes(pseudotime)) +
-      geom_density() +
+meta_toplot<-data.frame(ps=sce_dans$slingPseudotime_1,cellt=sce_dans$CellSubType)
+
+pD <- ggplot(meta_toplot, aes(x=ps, fill=cellt)) +
+      geom_density(alpha=.5) + theme_bw() +
       ggtitle("D")
 pD
 
-pE <- ggplot(go_ppi,
-             aes(term, logp,
-                 size=logp,
-                 color=interval)) +
-      geom_point() +
-      coord_flip() +
+pE <- ggplot(GO_toPlot_ALL,aes(x = Module , y = Term)) +  
+    geom_point(aes(size= -log(as.numeric(P)), color= Interval)) + scale_size(range = c(4, 8)) +
+    scale_color_manual(values=c("orange1"))+ theme(axis.text.y = element_text( color = "black",size = 10)) + theme(axis.text.x = element_text( color = "black",size = 10, angle = 90,hjust=1)) + guides(colour = guide_legend(override.aes = list(size=8))) +
       ggtitle("E")
 pE
