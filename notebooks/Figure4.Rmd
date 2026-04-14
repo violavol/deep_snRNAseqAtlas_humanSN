@@ -7,21 +7,46 @@ output: html_document
 library(CellChat)
 library(ggplot2)
 library(patchwork)
+library(clusterExperiment)
+
+load("results/cellcomm/cellchat_magma_enrichment_test.RData")
+load("results/pseudotime/ps_odc.RData")
+load("results/cellcomm/cellchat_res.RData")
 
 pA <- Heatmap(cellchat_magma_matrix)
 pA
 
-netVisual_circle(cellchat_obj)
+imgB <- rasterGrob(readPNG("figures/raw_images/cellcomm.png"))
+grid.newpage()
+grid.draw(imgB)
 
-Heatmap(trajectory_matrix)
+meta_toplot_odc<-data.frame(ps=sce_odc$slingPseudotime_1,disease=sce_odc$Disease,cellt=sce_odc$CellSubType)
+meta_toplot_odc<-meta_toplot_odc[meta_toplot_odc$cellt=="ODC_2",]
 
-pD <- ggplot(interaction_counts,
-             aes(group, value)) +
-      geom_bar(stat="identity") +
-      ggtitle("D")
+pC1 <- ggplot(meta_toplot_odc, aes(x=ps, fill=disease)) +
+    geom_density(alpha=.5) + theme_bw()
+
+genes_to_plot <- odc2_deg_tradeseqStartEnd[odc2_deg_tradeseqStartEnd$pvalue<0.05,]
+genes_to_plot <- genes_to_plot[rownames(genes_to_plot) %in% odc_LR_genes,]
+
+nPointsClus <- 20
+clusPat <- clusterExpressionPatterns(sce_odc2_deg, nPoints = nPointsClus,
+                                     genes = rownames(genes_to_plot))
+pC2 <- clusPat
+
+p_count <- compareInteractions(cellchat_merged, show.legend = FALSE, group = c(1, 2))
+p_weight <- compareInteractions(
+  cellchat_merged,
+  show.legend = FALSE,
+  group = c(1, 2),
+  measure = "weight"
+)
+
+pD <- p_count + p_weight
 pD
 
-Heatmap(diff_interaction_matrix)
+pE <- netVisual_heatmap(cellchat_merged)
+pE
 
-pF <- netAnalysis_signalingRole_heatmap(cellchat_obj)
+pF <- netAnalysis_signalingRole_heatmap(cellchat_merged)
 pF
