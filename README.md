@@ -15,7 +15,6 @@ Raw and processed gene expression data has been deposited in GEO under the acces
 ```
 deep_snRNAseqAtlas_humanSN/
 ├── README.md
-├── LICENSE
 ├── scripts/
 │   ├── 01_data_preprocessing.R
 │   ├── 02_cell_type_annotation.R
@@ -29,7 +28,7 @@ deep_snRNAseqAtlas_humanSN/
 │   ├── 10_coexpression_network.R
 │   ├── 11_SCENIC.R
 │   ├── cellchat_utils.R
-│   └── utils.R                # Common helper functions
+│   └── utils.R                
 ├── figures/
 │   ├── Figure_1/
 │   ├── Figure_2/
