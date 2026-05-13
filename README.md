@@ -6,7 +6,7 @@ This repository contains the code to reproduce figures and analysis presented in
 
 ## Data availability
 
-Raw and processed gene expression data has been deposited in GEO under the accession number:
+Raw and processed gene expression data has been deposited in GEO under the accession number: GSE329625.
 
 ## Repository Structure
 
