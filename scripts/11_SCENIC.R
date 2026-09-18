@@ -1,73 +1,113 @@
-```{r scenic, echo=TRUE}
-### Initialize settings
+# 11_SCENIC.R
+# SCENIC transcription-factor regulon analysis on DaN (CTR only).
+# Project: deep_snRNAseqAtlas_humanSN — Volpato et al. (2026)
 
 suppressPackageStartupMessages({
-   library(SCENIC)
-   library(AUCell)
-   library(RcisTarget)
-   library(SCopeLoomR)
-   library(KernSmooth)
-   library(BiocParallel)
-   library(ggplot2)
-   library(data.table)
-   library(grid)
-   library(ComplexHeatmap)
-   library(Seurat)
-   library(doRNG)
- })
+  library(SCENIC)
+  library(AUCell)
+  library(RcisTarget)
+  library(SCopeLoomR)
+  library(KernSmooth)
+  library(BiocParallel)
+  library(ggplot2)
+  library(data.table)
+  library(grid)
+  library(ComplexHeatmap)
+  library(Seurat)
+  library(doRNG)
+  library(here)
+})
+source(here("scripts/utils.R"))
 
+set.seed(42)
 
+# ── Parameters ────────────────────────────────────────────────────────────────
+CTRL_LABEL  <- "CTR"
+N_CORES     <- 10
+SEED        <- 42
+DB_DIR      <- here("data/external/cisTarget_databases")  # portable path
+
+# ── Load data ─────────────────────────────────────────────────────────────────
 load(here("data/processed/sn_atlas_annotated_subtype.RData"))
-sn_combined_tmp <- subset(sn_combined,subset=CellType=="DaN")
-sn_combined_tmp <- subset(sn_combined_tmp,subset=Disease=="CTR")
 
+sn_dan_ctr <- subset(sn_combined,
+                     subset = CellType == "DaN" & Disease == CTRL_LABEL)
+message("DaN CTR cells for SCENIC: ", ncol(sn_dan_ctr))
 
-genes_dan_ctr<-as.matrix(GetAssayData(sn_combined_tmp, slot = "counts"))
-metadata_danALLctr<-as.data.frame(tmp@meta.data)
+genes_dan_ctr     <- as.matrix(GetAssayData(sn_dan_ctr, slot = "counts"))
+metadata_dan_ctr  <- as.data.frame(sn_dan_ctr@meta.data)   # was wrongly "tmp" in original
+
+# ── Initialise SCENIC ─────────────────────────────────────────────────────────
 org <- "hgnc"
 data(defaultDbNames)
 dbs <- defaultDbNames[[org]]
-dbDir <-"/scratch/c.mpmvv/Postmortem_02_NovaSeq/src/"
 
-scenicOptions <- initializeScenic(org=org, dbDir=dbDir, dbs=dbs, datasetTitle="dans", nCores=10)
-scenicOptions@inputDatasetInfo$cellInfo<-metadata_danALLctr
-scenicOptions@inputDatasetInfo$colVars<-metadata_danALLctr$CellSubType
+scenicOptions <- initializeScenic(
+  org          = org,
+  dbDir        = DB_DIR,
+  dbs          = dbs,
+  datasetTitle = "DaN_CTR",
+  nCores       = N_CORES
+)
+scenicOptions@inputDatasetInfo$cellInfo  <- metadata_dan_ctr
+scenicOptions@inputDatasetInfo$colVars   <- metadata_dan_ctr$CellSubType
 
-data(list="motifAnnotations_hgnc_v9", package="RcisTarget")
+data(list = "motifAnnotations_hgnc_v9", package = "RcisTarget")
 motifAnnotations_hgnc <- motifAnnotations_hgnc_v9
 
-### Co-expression network
+# ── Co-expression network ─────────────────────────────────────────────────────
+set.seed(SEED)
+runCorrelation(genes_dan_ctr, scenicOptions)
 
-exprMat_filtered <- genes_dan_ctr
-runCorrelation(exprMat_filtered, scenicOptions)
-exprMat_filtered_log <- log2(exprMat_filtered+1) 
-runGenie3(exprMat_filtered_log, scenicOptions)
+genes_dan_ctr_log <- log2(genes_dan_ctr + 1)
+set.seed(SEED)
+runGenie3(genes_dan_ctr_log, scenicOptions)
+rm(genes_dan_ctr); gc()
 
-### Build and score the GRN
-
+# ── Build and score GRN ───────────────────────────────────────────────────────
 scenicOptions <- runSCENIC_1_coexNetwork2modules(scenicOptions)
-saveRDS(scenicOptions, file="int/scenicOptions_1.Rds")
+saveRDS(scenicOptions, file = here("results/SCENIC/scenicOptions_1.Rds"))
+
 scenicOptions <- runSCENIC_2_createRegulons(scenicOptions)
-saveRDS(scenicOptions, file="int/scenicOptions_2.Rds")
-scenicOptions <- runSCENIC_3_scoreCells(scenicOptions, exprMat_filtered_log)
-saveRDS(scenicOptions, file="int/scenicOptions_3.Rds")
+saveRDS(scenicOptions, file = here("results/SCENIC/scenicOptions_2.Rds"))
 
+scenicOptions <- runSCENIC_3_scoreCells(scenicOptions, genes_dan_ctr_log)
+saveRDS(scenicOptions, file = here("results/SCENIC/scenicOptions_3.Rds"))
 
-Idents(sn_combined_tmp)<-sn_atlas_dans_red$CellSubType
-cellInfo <- data.frame(seuratCluster=Idents(sn_combined_tmp))
-rownames(cellInfo)<-colnames(sn_combined_tmp)
+# ── Regulon activity per cell sub-type ───────────────────────────────────────
+regulonAUC_dans <- loadInt(scenicOptions, "aucell_regulonAUC")
 
-regulonActivity_byCellType <- sapply(split(rownames(cellInfo), cellInfo[,1]),
-                                     function(cells) rowMeans(getAUC(regulonAUC_dans)[,cells]))
+# Use sn_dan_ctr — NOT an undefined "tmp" object
+Idents(sn_dan_ctr) <- sn_dan_ctr$CellSubType
+cell_info <- data.frame(seuratCluster = Idents(sn_dan_ctr),
+                        row.names     = colnames(sn_dan_ctr))
 
+regulon_by_celltype <- sapply(
+  split(rownames(cell_info), cell_info[, 1]),
+  function(cells) rowMeans(getAUC(regulonAUC_dans)[, cells, drop = FALSE])
+)
 
+regulon_scaled <- t(scale(t(regulon_by_celltype), center = TRUE, scale = TRUE))
 
+p_heat <- ComplexHeatmap::Heatmap(
+  regulon_scaled,
+  name          = "Regulon activity",
+  row_names_gp  = grid::gpar(fontsize = 5)
+)
 
-regulonActivity_byCellType_Scaled <- t(scale(t(regulonActivity_byCellType), center = T, scale=T))
-ComplexHeatmap::Heatmap(regulonActivity_byCellType_Scaled, name="Regulon activity",row_names_gp =gpar(fontsize = 5))
+pdf(here("figures/Figure_6/SCENIC_regulon_heatmap.pdf"), width = 8, height = 12)
+draw(p_heat)
+dev.off()
 
-topRegulators <- reshape2::melt(regulonActivity_byCellType_Scaled)
-colnames(topRegulators) <- c("Regulon", "CellType", "RelativeActivity")
-topRegulators <- topRegulators[which(topRegulators$RelativeActivity>0),]
+# ── Top regulators per cell type ──────────────────────────────────────────────
+top_regulators <- reshape2::melt(regulon_scaled)
+colnames(top_regulators) <- c("Regulon", "CellType", "RelativeActivity")
+top_regulators <- top_regulators[top_regulators$RelativeActivity > 0, ]
 
-                                     
+# ── Save ──────────────────────────────────────────────────────────────────────
+ensure_dirs(here("results/SCENIC"))
+save(regulonAUC_dans, regulon_by_celltype, regulon_scaled, top_regulators,
+     file = here("results/SCENIC/SCENIC_results.RData"))
+message("SCENIC results saved.")
+
+log_session("11_SCENIC")
