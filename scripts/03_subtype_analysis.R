@@ -1,67 +1,107 @@
+# 03_subtype_analysis.R
+# Sub-clustering of dopaminergic neurons (DaN) and marker visualisation.
+# The same integration recipe can be applied to other cell types by adjusting
+# the CELL_TYPE parameter and, if needed, K_WEIGHT.
+# Project: deep_snRNAseqAtlas_humanSN — Volpato et al. (2026)
+
 library(Seurat)
 library(here)
+source(here("scripts/utils.R"))
 
-# Load annotated object
+# ── Parameters ────────────────────────────────────────────────────────────────
+CELL_TYPE   <- "DaN"
+N_FEATURES  <- 2000
+N_PCS       <- 40
+CLUSTER_RES <- 0.2      # lower resolution → broader sub-clusters
+K_ANCHOR    <- 40
+SEED        <- 42
+OUTLIER_SAMPLE <- "14_133"   # excluded: outlier in UMAP and pseudotime
+
+# DaN sub-type marker panel
+DAN_MARKERS <- c(
+  "SOX6", "GRIA3", "DCX", "AGTR1", "LMX1B", "GRIK3",
+  "RET", "GFRA2", "PITX3", "CHRNA4", "SLC18A2", "SLC6A3",
+  "TH", "KCNJ6", "ALDH1A1", "TMEM255A", "LGI1", "TMEFF2"
+)
+
+# ── Load annotated object ─────────────────────────────────────────────────────
 load(here("data/processed/sn_atlas_annotated.RData"))
 
-# Sub-cluster dopaminergic neurons
-DA_cells <- subset(sn_combined, idents = "DaN")
-meta<-as.data.frame(DA_cells@meta.data)
-meta<-meta[meta$Sample_v2!="14_133",] # outlier sample in both UMAP plot of all DaNs and in pseudotime analysis 
-DA_cells <- DA_cells[,colnames(DA_cells)%in%rownames(meta)]
+# ── Subset target cell type, remove outlier sample ───────────────────────────
+da_cells <- subset(sn_combined, idents = CELL_TYPE)
+da_cells <- subset(da_cells, subset = Sample_v2 != OUTLIER_SAMPLE)
 
-tmp_cell <- DA_cells
-tmp_cell.list <- SplitObject(tmp_cell, split.by = "Disease")
+message(sprintf("DaN cells after QC filter: %d", ncol(da_cells)))
 
-tmp_cell.list <- lapply(X = tmp_cell.list, FUN = function(x) {
-    x <- NormalizeData(x)
-    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+# ── rPCA integration within DaN ───────────────────────────────────────────────
+dan_list <- SplitObject(da_cells, split.by = "Disease")
+
+dan_list <- lapply(dan_list, function(x) {
+  x <- NormalizeData(x, verbose = FALSE)
+  x <- FindVariableFeatures(x, selection.method = "vst",
+                            nfeatures = N_FEATURES, verbose = FALSE)
+  x
 })
 
-features <- SelectIntegrationFeatures(object.list = tmp_cell.list)
-tmp_cell.list <- lapply(X = tmp_cell.list, FUN = function(x) {
-    x <- ScaleData(x, features = features, verbose = FALSE)
-    x <- RunPCA(x, features = features, verbose = FALSE)
+features <- SelectIntegrationFeatures(dan_list, nfeatures = N_FEATURES)
+
+dan_list <- lapply(dan_list, function(x) {
+  x <- ScaleData(x, features = features, verbose = FALSE)
+  x <- RunPCA(x, features = features, verbose = FALSE)
+  x
 })
 
-tmp_cell.anchors <- FindIntegrationAnchors(object.list = tmp_cell.list, anchor.features = features, reduction = "rpca", k.anchor=40)
-tmp_cell.combined <- IntegrateData(anchorset = tmp_cell.anchors) 
+anchors      <- FindIntegrationAnchors(dan_list,
+                                       anchor.features = features,
+                                       reduction       = "rpca",
+                                       k.anchor        = K_ANCHOR)
+dan_combined <- IntegrateData(anchorset = anchors)
+rm(da_cells, dan_list, anchors); gc()
 
-#tmp_cell.combined <- IntegrateData(anchorset = tmp_cell.anchors) # for odc
-#tmp_cell.combined <- IntegrateData(anchorset = tmp_cell.anchors,k.weight=80) # for microglia
-#tmp_cell.combined <- IntegrateData(anchorset = tmp_cell.anchors,k.weight=120) # for astrocytes
+# ── Dimensionality reduction & sub-clustering ─────────────────────────────────
+DefaultAssay(dan_combined) <- "integrated"
 
-DefaultAssay(tmp_cell.combined) <- "integrated"
+set.seed(SEED)
+dan_combined <- ScaleData(dan_combined, verbose = FALSE)
+dan_combined <- RunPCA(dan_combined, npcs = N_PCS, verbose = FALSE)
+dan_combined <- RunUMAP(dan_combined, reduction = "pca", dims = 1:N_PCS, seed.use = SEED)
+dan_combined <- FindNeighbors(dan_combined, reduction = "pca", dims = 1:N_PCS)
 
-tmp_cell.combined <- ScaleData(tmp_cell.combined, verbose = FALSE)
-tmp_cell.combined <- RunPCA(tmp_cell.combined, npcs = 40, verbose = FALSE)
-tmp_cell.combined <- RunUMAP(tmp_cell.combined, reduction = "pca", dims = 1:40)
-tmp_cell.combined <- FindNeighbors(tmp_cell.combined, reduction = "pca", dims = 1:40)
-tmp_cell.combined <- FindClusters(tmp_cell.combined, resolution = 0.2)
+set.seed(SEED)
+dan_combined <- FindClusters(dan_combined, resolution = CLUSTER_RES)
 
-DimPlot(tmp_cell.combined, reduction = "umap", split.by = "Disease",group.by="seurat_clusters")
+message("DaN sub-clusters: ", nlevels(Idents(dan_combined)))
 
-DefaultAssay(tmp_cell.combined) <- "RNA"
-dan_markers <- c("SOX6", "GRIA3", "DCX", "AGTR1", "LMX1B", "GRIK3", "RET", "GFRA2", "PITX3", "CHRNA4", "SLC18A2", "SLC6A3", "TH", "KCNJ6", "ALDH1A1", "TMEM255A", "LGI1",   "TMEFF2")
+# ── Marker dot-plot (clusters 0–3; 4–5 too small / disease-restricted) ───────
+DefaultAssay(dan_combined) <- "RNA"
 
-DotPlot(tmp_cell.combined, features = dan_markers, dot.scale = 8,idents = c(0,1,2,3)) + # clusters 4 and 5 are not used as too small and only present in ILBD_B3-4
-    RotatedAxis()
+p_dot <- dotplot_rot(dan_combined, features = DAN_MARKERS,
+                     cluster_ids = as.character(0:3))
+save_plot(p_dot, here("figures/Figure_2/dotplot_DaN_markers.pdf"), width = 12, height = 5)
 
-meta_sub<-as.data.frame(tmp_cell.combined@meta.data)
+p_umap <- DimPlot(dan_combined, reduction = "umap",
+                  split.by = "Disease", group.by = "seurat_clusters")
+save_plot(p_umap, here("figures/Figure_2/umap_DaN_subclusters.pdf"), width = 16, height = 5)
 
-sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==0,]),"DaN_0",sn_combined$CellSubType)
-sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==1,]),"DaN_1",sn_combined$CellSubType)
-sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==2,]),"DaN_2",sn_combined$CellSubType)
-sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==3,]),"DaN_3",sn_combined$CellSubType)
-sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==4,]),"DaN_4",sn_combined$CellSubType)
-sn_combined$CellSubType <- ifelse(colnames(sn_combined)==rownames(meta_sub[meta_sub$seurat_clusters==5,]),"DaN_5",sn_combined$CellSubType)
+# ── Transfer sub-cluster labels to the full atlas object ─────────────────────
+# Use %in% for set membership — NOT == — to handle vector-length mismatches
+sub_meta <- as.data.frame(dan_combined@meta.data)
 
-save(sn_combined, file = here("data/processed/sn_atlas_annotated_subtype.RData"))
+# Initialise column (NA for non-DaN cells)
+sn_combined$CellSubType <- NA_character_
 
+for (cl in as.character(sort(unique(sub_meta$seurat_clusters)))) {
+  cells_in_cluster <- rownames(sub_meta)[sub_meta$seurat_clusters == cl]
+  sn_combined$CellSubType[colnames(sn_combined) %in% cells_in_cluster] <-
+    paste0("DaN_", cl)
+}
 
-# markers_ODC=c("PLXDC2","PLP1","SPARC","DHCR24","TUBA1A","PMP2","RBFOX1","AFF3","FMN1","PALM2","HHIP","OPALIN","LAMA2") # selected from https://www.biorxiv.org/content/10.1101/2022.03.22.485367v1.full.pdf
+message("CellSubType distribution (DaN cells):")
+print(table(sn_combined$CellSubType, useNA = "ifany"))
 
-# markers_microglia=c("MRC1","IL10","ABCC4","CSF2RA","CSF3R","TFRC","KLF4","PTGS1","DOCK8","KCNQ1","PTPRC","GPNMB","SPP1","TYROBP","TREM2","TLR2","MS4A4A","IL13RA1","INPP5D","ITGAM","ADAP2","APBB1IP","SP140L","VAV1") # macrophage M2: "MRC1","IL10","ABCC4","CSF2RA","CSF3R","TFRC","KLF4","PTGS1","DOCK8")
+# ── Save ──────────────────────────────────────────────────────────────────────
+save(sn_combined, dan_combined,
+     file = here("data/processed/sn_atlas_annotated_subtype.RData"))
+message("Saved subtype-annotated object.")
 
-# markers_astrocyte=c("GABRA2","EDNRB","PPFIA2","KCNJ16","BHLHE40","SLC6A11","PAK3","GRM5","PTPRT","FAT3","EPHA6","EPHB1","ADGRV1","SPOCK1","SPSB1","MYO1E","SLC24A2","ELMO1","NKAIN2","PLP1","S100B","TMSB4X") 
-
+log_session("03_subtype_analysis")

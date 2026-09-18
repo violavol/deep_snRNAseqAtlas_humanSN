@@ -1,77 +1,114 @@
-### Isoform Analysis 
+# 05_DTU_analysis.R
+# Differential transcript usage (DTU) using fishpond/swish, plus
+# isoform-level pseudotime analysis along the OPC → ODC_2 trajectory.
+# Project: deep_snRNAseqAtlas_humanSN — Volpato et al. (2026)
 
-library(slingshot)
+library(tximeta)
 library(fishpond)
 library(scran)
 library(biomaRt)
-ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl", host = "https://useast.ensembl.org")
-library(tximeta)
+library(slingshot)
+library(Seurat)
+library(switchde)
+library(here)
+source(here("scripts/utils.R"))
 
-coldata<-read.delim("data/processed/coldata_ALL_CTRandPD56_modified_nfs",h=T,stringsAsFactors=F)
+set.seed(42)
+
+# ── Parameters ────────────────────────────────────────────────────────────────
+CTRL_LABEL  <- "CTR"
+PD_LABEL    <- "PD_B5-6"
+MIN_COUNT   <- 3
+MIN_N       <- 10
+N_PERMS     <- 64
+N_DIMS_ISO  <- 10
+CLUSTER_RES <- 0.6
+MEAN_EXPR_THRESHOLD   <- 0.1
+NONZERO_FRAC_THRESHOLD <- 0.2
+SEED <- 42
+
+# ── Load salmon quantifications ───────────────────────────────────────────────
+coldata <- read.delim(here("data/processed/coldata_ALL_CTRandPD56_modified_nfs"),
+                      header = TRUE, stringsAsFactors = FALSE)
 
 suppressPackageStartupMessages(library(SummarizedExperiment))
-y <- tximeta(coldata,dropInfReps=T)
+y <- tximeta(coldata, dropInfReps = TRUE)
 
-# diff transcript express
+# ── Differential transcript expression ───────────────────────────────────────
+y <- labelKeep(y, minCount = MIN_COUNT, minN = MIN_N)
+y <- y[mcols(y)$keep, ]
 
-y <- labelKeep(y, minCount = 3, minN = 10)
-y <- y[mcols(y)$keep,]
-set.seed(1)
-assays(y) <- lapply(assays(y), as.matrix) # make dense matrices
-y <- scaleInfReps(y, lengthCorrect=FALSE, sfFun= computeSumFactors)
-y <- swish(y, x="condition",  quiet=TRUE)
+assays(y) <- lapply(assays(y), as.matrix)   # dense needed for scran
+y <- scaleInfReps(y, lengthCorrect = FALSE, sfFun = computeSumFactors)
+y <- swish(y, x = "condition", quiet = TRUE)
 
-# diff isoform usage
+# ── Differential isoform usage ────────────────────────────────────────────────
+iso     <- isoformProportions(y)
+iso     <- swish(iso, x = "condition", nperms = N_PERMS)
+dtu_df  <- as.data.frame(mcols(iso)[, c("log2FC", "qvalue", "gene", "tx_id")])
 
-iso <- isoformProportions(y)
-iso <- swish(iso, x="condition",nperms=64)
+# ── OPC → ODC_2 pseudotime on isoform data ───────────────────────────────────
+load(here("data/processed/pseudotime_isoforms_OPC_ODCs_CTRandPD56.RData"))
 
-df<-mcols(iso)[,c("log2FC","qvalue","gene","tx_id")]
+isoform_mat <- as.matrix(assays(y)[[2]])
+meta_iso <- data.frame(
+  celltype = y$cellSubType,
+  disease  = y$condition,
+  cell     = y$Barcode,
+  sample   = y$names,
+  row.names = paste(y$Barcode, y$names, sep = "_")
+)
+colnames(isoform_mat) <- rownames(meta_iso)
 
-load("data/processed/Transcript_expression_allCelltype_CTRandPD56.RData") # to get all data and get number of DTUs
+run_opc_odc_pseudotime <- function(isoform_mat, meta_iso, disease_val, seed = SEED) {
+  meta_sub <- meta_iso[meta_iso$disease == disease_val, ]
+  mat_sub  <- isoform_mat[, rownames(meta_sub), drop = FALSE]
 
-# OPCs to ODCs differentiation using isoform data
+  obj <- CreateSeuratObject(counts = mat_sub, min.cells = 0,
+                            min.features = 0, meta.data = meta_sub)
 
-load("data/processed/pseudotime_isoforms_OPC_ODCs_CTRandPD56.RData")
+  set.seed(seed)
+  obj <- NormalizeData(obj, verbose = FALSE)
+  obj <- FindVariableFeatures(obj, selection.method = "vst",
+                              nfeatures = 2000, verbose = FALSE)
+  obj <- ScaleData(obj, verbose = FALSE)
+  obj <- RunPCA(obj, features = VariableFeatures(obj), verbose = FALSE)
+  obj <- FindNeighbors(obj, dims = 1:N_DIMS_ISO, verbose = FALSE)
 
-isoform_OPC_ODC2_CTRandPD56<-as.matrix(assays(y)[[2]])
-meta_isoform_OPC_ODC2_CTRandPD56<-data.frame(celltype=y$cellSubType,disease=y$condition,cell=y$Barcode,sample=y$names)
-meta_isoform_OPC_ODC2_CTRandPD56$names<-paste(meta_isoform_OPC_ODC2_CTRandPD56$cell,meta_isoform_OPC_ODC2_CTRandPD56$sample,sep="_")
-colnames(isoform_OPC_ODC2_CTRandPD56)<-meta_isoform_OPC_ODC2_CTRandPD56$names
-rownames(meta_isoform_OPC_ODC2_CTRandPD56)<-meta_isoform_OPC_ODC2_CTRandPD56$names
+  set.seed(seed)
+  obj <- FindClusters(obj, resolution = CLUSTER_RES, verbose = FALSE)
 
-chip_iso_opc_odc2_ctrpd <- CreateSeuratObject(counts = isoform_OPC_ODC2_CTRandPD56, project = "isoform", min.cells = 0, min.features = 0,meta.data= meta_isoform_OPC_ODC2_CTRandPD56)
+  set.seed(seed)
+  obj <- RunUMAP(obj, dims = 1:N_DIMS_ISO, seed.use = seed, verbose = FALSE)
 
-# done on controls and pd samples separately
-chip_iso_opc_odc2_ctr <- subset(chip_iso_opc_odc2_ctrpd,subset=disease=="CTR")
-chip_iso_opc_odc2_ctr <- NormalizeData(chip_iso_opc_odc2_ctr)
-chip_iso_opc_odc2_ctr <- FindVariableFeatures(chip_iso_opc_odc2_ctr, selection.method = "vst", nfeatures = 2000)
+  sce <- as.SingleCellExperiment(obj, assay = "RNA")
+  sce <- slingshot(sce, reducedDim = "UMAP", clusterLabels = "seurat_clusters")
 
-chip_iso_opc_odc2_ctr <- ScaleData(chip_iso_opc_odc2_ctr)
-chip_iso_opc_odc2_ctr <- RunPCA(chip_iso_opc_odc2_ctr, features = VariableFeatures(object = chip_iso_opc_odc2_ctrpd))
-chip_iso_opc_odc2_ctr <- FindNeighbors(chip_iso_opc_odc2_ctr, dims = 1:10)
-chip_iso_opc_odc2_ctr <- FindClusters(chip_iso_opc_odc2_ctr, resolution = 0.6)
-chip_iso_opc_odc2_ctr <- RunUMAP(chip_iso_opc_odc2_ctr, dims = 1:10)
+  list(obj = obj, sce = sce)
+}
 
-sce_iso_opc_odc2_ctr <- as.SingleCellExperiment(chip_iso_opc_odc2_ctr, assay = "RNA")
-sce_iso_opc_odc2_ctr <- slingshot(sce_iso_opc_odc2_ctr, reducedDim = 'UMAP', clusterLabels = 'seurat_clusters')
-meta_isoform_OPC_ODC2_CTR<-meta_isoform_OPC_ODC2_CTRandPD56[meta_isoform_OPC_ODC2_CTRandPD56$disease=="CTR",]
-meta_isoform_OPC_ODC2_CTR$ps<-sce_iso_opc_odc2_ctr$slingPseudotime_1
+res_ctr <- run_opc_odc_pseudotime(isoform_mat, meta_iso, CTRL_LABEL)
+res_pd  <- run_opc_odc_pseudotime(isoform_mat, meta_iso, PD_LABEL)
 
-ggplot(meta_isoform_OPC_ODC2_CTR, aes(x=ps, fill=celltype)) +
-    geom_density(alpha=.5) + theme_bw()
+meta_iso_ctr <- meta_iso[meta_iso$disease == CTRL_LABEL, ]
+meta_iso_ctr$pseudotime <- res_ctr$sce$slingPseudotime_1
 
-save(meta_isoform_OPC_ODC2_CTR,meta_isoform_OPC_ODC2_PD_B56, file= here("results/pseudotime/OPC_ODCs_DTU_ps.RData"))
+meta_iso_pd <- meta_iso[meta_iso$disease == PD_LABEL, ]
+meta_iso_pd$pseudotime <- res_pd$sce$slingPseudotime_1
 
+# ── SwitchDE along OPC→ODC_2 trajectory (CTR) ────────────────────────────────
+iso_ctr_log <- log(as.matrix(GetAssayData(res_ctr$obj, slot = "counts")) + 1)
+iso_ctr_log <- iso_ctr_log[
+  rowMeans(iso_ctr_log) > MEAN_EXPR_THRESHOLD &
+    rowMeans(iso_ctr_log > 0) > NONZERO_FRAC_THRESHOLD, ]
 
-isoform_OPC_ODC2_CTR<-as.matrix(GetAssayData(chip_iso_opc_odc2_ctr, slot = "counts"))
-isoform_OPC_ODC2_CTR<-log(isoform_OPC_ODC2_CTR+1)
-sde_iso_opc_odc2_ctr <- switchde(isoform_OPC_ODC2_CTR, sce_iso_opc_odc2_ctr$slingPseudotime_1)
+sde_iso_opc_odc2_ctr <- switchde(iso_ctr_log, res_ctr$sce$slingPseudotime_1)
 
-# test enrichment of pd risk isoforms in OPCs and ODC_2 along differentiation trajectory:
-pd_risk_opc_isoform<-read.table("pd_50k_gene_and_iso_opc.gsa.sets.genes.out",h=T)
-pd_risk_odc2_isoform<-read.table("pd_50k_gene2000_and_iso_odc2_only.gsa.sets.genes.out",h=T)
+# ── Save ──────────────────────────────────────────────────────────────────────
+ensure_dirs(here("results/pseudotime"))
 
+save(dtu_df, meta_iso_ctr, meta_iso_pd, sde_iso_opc_odc2_ctr,
+     file = here("results/pseudotime/OPC_ODCs_DTU_ps.RData"))
+message("DTU and isoform pseudotime results saved.")
 
-
-
+log_session("05_DTU_analysis")
